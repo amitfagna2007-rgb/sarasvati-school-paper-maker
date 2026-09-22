@@ -28,7 +28,8 @@ $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;
 $('printSettings').onclick=()=>{$('printPanel').style.display=$('printPanel').style.display==='none'?'block':'none'};$('paperSize').onchange=e=>document.documentElement.style.setProperty('--print-size',e.target.value);$('orientation').onchange=e=>document.documentElement.style.setProperty('--print-orientation',e.target.value);$('margins').onchange=e=>document.documentElement.style.setProperty('--print-margin',e.target.value==='none'?'0':e.target.value==='small'?'5mm':'10mm');$('bgPrint').onchange=e=>document.body.classList.toggle('no-bg-print',e.target.value==='no');$('layout').onchange=renderPreview;let activeVoice=null,voiceBase='',voiceTargetIndex=-1;
 $('voice').onclick=async()=>{
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  const resetVoiceButton=()=>{$('voice').disabled=false;$('voice').textContent='🎤 Voice Question'};
+  const btn=$('voice');
+  const reset=()=>{btn.disabled=false;btn.textContent='🎤 Voice Question';btn.dataset.voiceRunning='0';btn._recognition=null};
   if(!SR){
     let target=document.activeElement&&document.activeElement.classList.contains('qt')?document.activeElement:null;
     if(!target){
@@ -36,68 +37,52 @@ $('voice').onclick=async()=>{
       target=document.querySelectorAll('.qt').at(-1);
     }
     target?.focus();
-    alert('इस PWA में browser Voice Recognition उपलब्ध नहीं है। प्रश्न box में cursor रखें और Windows में Win + H दबाकर बोलें।');
+    alert('इस browser में direct Voice Recognition उपलब्ध नहीं है। प्रश्न box में cursor रखें और Windows में Win + H दबाकर बोलें।');
     return;
   }
-  if(!window.isSecureContext||location.protocol!=='https:'){
-    alert('Voice Question के लिए PWA को Chrome/Edge में HTTPS GitHub Pages से खोलें।');
+  if(btn.dataset.voiceRunning==='1'){
+    if(btn._recognition){try{btn._recognition.stop()}catch(e){}}
     return;
   }
-  if(activeVoice){try{activeVoice.stop()}catch(e){}return}
   let target=document.activeElement&&document.activeElement.classList.contains('qt')?document.activeElement:null;
   if(!target){
     if(!questions.length){questions.push({text:'',type:'Short',marks:1,options:[]});render()}
     target=document.querySelectorAll('.qt').at(-1);
   }
-  voiceTargetIndex=[...document.querySelectorAll('.qt')].indexOf(target);
-  if(voiceTargetIndex<0)return;
-  voiceBase=questions[voiceTargetIndex]?.text||'';
-  const r=new SR(); activeVoice=r;
-  r.lang=$('voiceLang').value;
-  r.continuous=false;
-  r.interimResults=true;
-  r.maxAlternatives=1;
-  $('voice').disabled=true;
-  $('voice').textContent='⏹️ बोलिए...';
+  const boxes=()=>[...document.querySelectorAll('.qt')];
+  const idx=boxes().indexOf(target);
+  if(idx<0){alert('पहले प्रश्न के box में click करें या Add Question दबाएँ।');return}
+  const r=new SR();btn._recognition=r;btn.dataset.voiceRunning='1';btn.textContent='⏹️ बोलिए...';btn.disabled=false;
+  r.lang=$('voiceLang').value||'hi-IN';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
+  let base=questions[idx]?.text||'';
   r.onresult=e=>{
     let finalText='',interimText='';
     for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      if(e.results[i].isFinal) finalText+=t; else interimText+=t;
+      const t=(e.results[i][0]?.transcript||'').trim();
+      if(e.results[i].isFinal) finalText+=(finalText?' ':'')+t;
+      else interimText+=(interimText?' ':'')+t;
     }
-    const combined=(finalText||interimText).trim();
-    if(!combined)return;
-    const base=voiceBase;
-    questions[voiceTargetIndex].text=base+(base&&combined?' ':'')+combined;
+    const spoken=(finalText||interimText).trim();
+    if(!spoken)return;
+    const text=(base?(base+' '):'')+spoken;
+    questions[idx].text=text;
     renderPreview();
-    if(finalText){
-      voiceBase=questions[voiceTargetIndex].text;
-      renderQuestions();
-      setTimeout(()=>{
-        const qs=document.querySelectorAll('.qt');
-        const q=qs[voiceTargetIndex];
-        if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}
-      },0);
-    }
+    const q=boxes()[idx];
+    if(q){q.value=text;q.focus();q.setSelectionRange(text.length,text.length)}
+    if(finalText){base=text;renderQuestions();renderPreview();const q2=boxes()[idx];if(q2){q2.focus();q2.setSelectionRange(q2.value.length,q2.value.length)}}
   };
   r.onerror=e=>{
-    const msg=e.error==='not-allowed'
-      ?'Microphone permission blocked है। Chrome/Edge में 🔒 → Site settings → Microphone → Allow करें।'
-      :e.error==='no-speech'
-      ?'आवाज़ नहीं मिली। Mic के पास साफ बोलकर फिर दबाएँ।'
-      :e.error==='network'
-      ?'Voice service/network error है। Internet ON करके फिर दबाएँ।'
-      :'Voice error: '+e.error;
+    const code=e.error||'unknown';
+    let msg='Voice input शुरू नहीं हो पाया।';
+    if(code==='not-allowed'||code==='service-not-allowed')msg='Microphone permission बंद है। Chrome/Edge में 🔒 → Site settings → Microphone → Allow करें। अगर यह HTML file से खुली है और फिर भी permission न मिले, GitHub Pages की HTTPS website से खोलें।';
+    else if(code==='no-speech')msg='आवाज़ नहीं मिली। Voice Question दबाकर mic के पास साफ बोलें।';
+    else if(code==='network')msg='Voice service/network error है। Internet ON करके फिर कोशिश करें।';
+    else if(code==='aborted')msg='Voice बंद कर दी गई। फिर से दबाकर बोलें।';
+    else msg='Voice error: '+code;
     alert(msg);
   };
-  r.onend=()=>{
-    activeVoice=null;
-    resetVoiceButton();
-    const qs=document.querySelectorAll('.qt');
-    const q=qs[voiceTargetIndex];
-    if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}
-  };
-  try{r.start()}catch(e){activeVoice=null;resetVoiceButton();alert('Voice start नहीं हो पाया। PWA को Chrome/Edge में खोलकर Microphone Allow करें।')}
+  r.onend=()=>{reset();const q=boxes()[idx];if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}};
+  try{r.start()}catch(e){reset();alert('Voice start नहीं हो पाया। Chrome/Edge में Microphone Allow करके फिर कोशिश करें।')}
 };
 ['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){promptEvent.prompt();promptEvent=null}};if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});render();
 </script></body></html>
