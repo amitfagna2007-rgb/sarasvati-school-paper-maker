@@ -1,4 +1,4 @@
-const CACHE='sarasvati-paper-maker-v18';
+const CACHE='sarasvati-paper-maker-v19';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./school_logo.svg','./sw.js'];
 
 self.addEventListener('install',e=>e.waitUntil(
