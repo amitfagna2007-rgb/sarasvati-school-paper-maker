@@ -38,9 +38,7 @@ $('voice').onclick=async()=>{
     }
     target?.focus();
     if(location.protocol==='file:'){
-      if(confirm('Voice चलाने के लिए यह app GitHub Pages/localhost पर खोलना जरूरी है। पहले START_SCHOOL_TEST.bat चलाएँ या ऊपर दिए install link से PWA खोलें.\n\nक्या localhost app खोलें?')){
-        location.href='http://localhost:8765/';
-      }
+      alert('इस downloaded HTML में browser Voice Recognition उपलब्ध नहीं है। Voice के लिए ऊपर वाला GitHub Pages PWA खोलें: https://amitfagna2007-rgb.github.io/sarasvati-school-paper-maker/');
     }else{
       alert('इस browser में Speech Recognition उपलब्ध नहीं है। Chrome/Edge का नया version इस्तेमाल करें।');
     }
