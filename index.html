@@ -37,7 +37,13 @@ $('voice').onclick=async()=>{
       target=document.querySelectorAll('.qt').at(-1);
     }
     target?.focus();
-    alert('इस browser में direct Voice Recognition उपलब्ध नहीं है। प्रश्न box में cursor रखें और Windows में Win + H दबाकर बोलें।');
+    if(location.protocol==='file:'){
+      if(confirm('Voice चलाने के लिए यह app GitHub Pages/localhost पर खोलना जरूरी है। पहले START_SCHOOL_TEST.bat चलाएँ या ऊपर दिए install link से PWA खोलें.\n\nक्या localhost app खोलें?')){
+        location.href='http://localhost:8765/';
+      }
+    }else{
+      alert('इस browser में Speech Recognition उपलब्ध नहीं है। Chrome/Edge का नया version इस्तेमाल करें।');
+    }
     return;
   }
   if(btn.dataset.voiceRunning==='1'){
@@ -54,6 +60,7 @@ $('voice').onclick=async()=>{
   if(idx<0){alert('पहले प्रश्न के box में click करें या Add Question दबाएँ।');return}
   const r=new SR();btn._recognition=r;btn.dataset.voiceRunning='1';btn.textContent='⏹️ बोलिए...';btn.disabled=false;
   r.lang=$('voiceLang').value||'hi-IN';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
+  try{r.processLocally=false}catch(e){}
   let base=questions[idx]?.text||'';
   r.onresult=e=>{
     let finalText='',interimText='';
