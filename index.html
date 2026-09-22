@@ -99,5 +99,5 @@ $('voice').onclick=async()=>{
   };
   try{r.start()}catch(e){activeVoice=null;resetVoiceButton();alert('Voice start नहीं हो पाया। PWA को Chrome/Edge में खोलकर Microphone Allow करें।')}
 };
-};['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){promptEvent.prompt();promptEvent=null}};if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});render();
+['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){promptEvent.prompt();promptEvent=null}};if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});render();
 </script></body></html>
