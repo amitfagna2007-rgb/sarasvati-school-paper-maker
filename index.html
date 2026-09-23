@@ -25,6 +25,60 @@ function renderSaved(){const r=$('savedList');if(!r)return;r.innerHTML=saved.len
 $('add').onclick=()=>{questions.push({text:'',type:'Short',marks:1,options:[]});render();setTimeout(()=>document.querySelectorAll('.qt').at(-1)?.focus(),0)};$('saveBank').onclick=()=>saveQuestionBank(questions[questions.length-1]);$('openBank').onclick=()=>{$('bankPanel').style.display=$('bankPanel').style.display==='none'?'block':'none';renderBank()};$('bankSearch').oninput=renderBank;$('bankFilter').oninput=renderBank;$('save').onclick=()=>{saved.push({name:(val('cls')||'Class')+' - '+(val('subject')||'Paper')+' - '+(val('exam')||'Test'),when:new Date().toISOString(),data:state()});localStorage.setItem('spm_saved',JSON.stringify(saved));renderSaved();alert('Paper save हो गया।')};$('clear').onclick=()=>{if(confirm('नया paper शुरू करें? Current unsaved changes हटेंगे.')){questions=[];render()}};$('hindiTip').onclick=()=>{if(!document.querySelector('.qt'))$('add').click();setTimeout(()=>document.querySelectorAll('.qt').at(-1)?.focus(),50);alert('अब Hindi keyboard या keyboard mic से सीधे हिंदी में लिख सकते हैं।')};$('backup').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({papers:saved,current:state()})],{type:'application/json'}));a.download='SchoolPaperMaker_Backup.json';a.click()};$('restoreBtn').onclick=()=>$('restore').click();$('restore').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);saved=x.papers||[];localStorage.setItem('spm_saved',JSON.stringify(saved));if(x.current){let s=x.current;Object.keys(s).filter(k=>k!=='questions').forEach(k=>{if($(k))$(k).value=s[k]});questions=s.questions||[]}render();alert('Backup restore हो गया।')}catch{alert('Backup गलत है।')}};r.readAsText(f)};
 $('previewPrint').onclick=()=>{document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');fitQuestionText();document.body.classList.remove('print-one','print-half','print-four');const l=val('layout');document.body.classList.add(l==='half'?'print-half':l==='four'?'print-four':'print-one');document.documentElement.style.setProperty('--print-margin','0');requestAnimationFrame(()=>window.print())};
 $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;btn.disabled=true;btn.textContent='⏳ PDF बन रहा है...';let clone=null,blobUrl='';try{if(typeof html2pdf!=='function')throw new Error('html2pdf not loaded');const source=$('preview');if(!source||!source.innerHTML.trim())throw new Error('preview is empty');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const images=[...source.querySelectorAll('img')];await Promise.all(images.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r})));fitQuestionText();await new Promise(r=>requestAnimationFrame(r));const layout=val('layout');const four=layout==='four',half=layout==='half';clone=source.cloneNode(true);clone.id='pdfExport';clone.style.cssText='position:fixed;left:-100000px;top:0;width:210mm;height:297mm;min-height:297mm;max-height:297mm;margin:0;padding:0;background:#fff;overflow:hidden;display:block';document.body.appendChild(clone);const sheet=clone.firstElementChild;if(layout==='one'){const p=clone.querySelector('.paper');p.style.width='210mm';p.style.height='297mm';p.style.minHeight='297mm';p.style.maxHeight='297mm';p.style.overflow='hidden'}else if(half){sheet.style.width='210mm';sheet.style.height='297mm';sheet.style.gridTemplateColumns='1fr';sheet.style.gridTemplateRows='148.5mm 148.5mm';[...sheet.querySelectorAll('.paper')].forEach(p=>{p.style.width='210mm';p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden'})}else{sheet.style.width='210mm';sheet.style.height='297mm';sheet.style.gridTemplateColumns='105mm 105mm';sheet.style.gridTemplateRows='148.5mm 148.5mm';[...sheet.querySelectorAll('.paper')].forEach(p=>{p.style.width='105mm';p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden'})}const name=((val('school')||'School')+' - '+(val('subject')||'Question Paper')).replace(/[\\/:*?"<>|]/g,'_');const opt={margin:0,filename:name+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollX:0,scrollY:0,windowWidth:794,windowHeight:1123},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:[]}};const pdf=await html2pdf().set(opt).from(clone).toPdf().get('pdf');const blob=pdf.output('blob');if(!blob||blob.size<1024)throw new Error('empty PDF blob');blobUrl=URL.createObjectURL(blob);const a=document.createElement('a');a.href=blobUrl;a.download=name+'.pdf';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>{if(blobUrl)URL.revokeObjectURL(blobUrl)},60000)}catch(e){console.error(e);if(blobUrl)URL.revokeObjectURL(blobUrl);alert('PDF नहीं बन पाया। पहले page refresh करें और फिर Download PDF दबाएँ।')}finally{if(clone)clone.remove();btn.disabled=false;btn.textContent=old}};
+
+/* Restore missing app handlers */
+$('printSettings').onclick=()=>{ $('printPanel').style.display=$('printPanel').style.display==='none'?'block':'none'; };
+
+$('voice').onclick=()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){
+    const q=document.querySelectorAll('.qt').at(-1);
+    if(q) q.focus();
+    alert('इस Chrome/device में Voice Question उपलब्ध नहीं है। Chrome में microphone permission दें और HTTPS वाली PWA खोलें।');
+    return;
+  }
+  if(!document.querySelector('.qt')) $('add').click();
+  const target=document.querySelectorAll('.qt').at(-1);
+  if(!target)return;
+  const rec=new SR();
+  rec.lang=val('voiceLang')||'hi-IN';
+  rec.interimResults=false;
+  rec.continuous=false;
+  rec.onstart=()=>{$('voice').textContent='🎙️ सुन रहा है...';$('voice').disabled=true};
+  rec.onresult=e=>{
+    const text=e.results?.[0]?.[0]?.transcript||'';
+    if(text){
+      const q=questions[questions.length-1];
+      if(q){q.text=(q.text? q.text+' ':'')+text;renderQuestions();renderPreview();setTimeout(()=>document.querySelectorAll('.qt').at(-1)?.focus(),0)}
+    }
+  };
+  rec.onerror=e=>{
+    console.error('Voice error',e);
+    if(e.error==='not-allowed'||e.error==='service-not-allowed') alert('Microphone permission allow करें।');
+    else if(e.error==='network') alert('Voice service के लिए Internet जरूरी है।');
+  };
+  rec.onend=()=>{$('voice').textContent='🎤 Voice Question';$('voice').disabled=false};
+  try{rec.start()}catch(e){$('voice').textContent='🎤 Voice Question';$('voice').disabled=false}
+};
+
+let installPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e});
+$('install').onclick=async()=>{
+  if(installPrompt){
+    await installPrompt.prompt();
+    installPrompt=null;
+    return;
+  }
+  alert('Chrome के ⋮ menu में Add to Home screen / Install App चुनें।');
+};
+window.addEventListener('appinstalled',()=>{installPrompt=null});
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(e=>console.error('SW registration failed',e)));
+}
+
+render();
+
 /* Direct GitHub version updater */
 (function(){
   const VERSION_URL='./version.json?ts=';
