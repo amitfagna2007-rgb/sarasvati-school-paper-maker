@@ -1,5 +1,5 @@
-const CACHE='sarasvati-paper-maker-v28';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./school_logo.svg','./sw.js'];
+const CACHE='sarasvati-paper-maker-v29';
+const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./school_logo.svg','./sw.js','./version.json'];
 
 self.addEventListener('message',e=>{if(e.data&&e.data.type==='SKIP_WAITING')self.skipWaiting()});
 
