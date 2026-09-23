@@ -73,7 +73,7 @@ $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;
     }catch(e){
       console.warn(e);
       if(b){b.textContent=old;b.disabled=false}
-      alert('Update नहीं हो पाया। Internet connected होने के बाद Chrome में page को एक बार Refresh करें और फिर Update दबाएँ। आपका saved data सुरक्षित है।');
+      alert('नया Update check नहीं हो पाया। अभी GitHub Pages तक connection verify नहीं हुआ। कृपया 10 सेकंड बाद फिर Update दबाएँ। आपका saved data सुरक्षित है।');
     }
   };
   document.addEventListener('DOMContentLoaded',function(){
