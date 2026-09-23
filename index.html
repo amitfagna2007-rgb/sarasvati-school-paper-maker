@@ -25,60 +25,35 @@ function renderSaved(){const r=$('savedList');if(!r)return;r.innerHTML=saved.len
 $('add').onclick=()=>{questions.push({text:'',type:'Short',marks:1,options:[]});render();setTimeout(()=>document.querySelectorAll('.qt').at(-1)?.focus(),0)};$('saveBank').onclick=()=>saveQuestionBank(questions[questions.length-1]);$('openBank').onclick=()=>{$('bankPanel').style.display=$('bankPanel').style.display==='none'?'block':'none';renderBank()};$('bankSearch').oninput=renderBank;$('bankFilter').oninput=renderBank;$('save').onclick=()=>{saved.push({name:(val('cls')||'Class')+' - '+(val('subject')||'Paper')+' - '+(val('exam')||'Test'),when:new Date().toISOString(),data:state()});localStorage.setItem('spm_saved',JSON.stringify(saved));renderSaved();alert('Paper save हो गया।')};$('clear').onclick=()=>{if(confirm('नया paper शुरू करें? Current unsaved changes हटेंगे.')){questions=[];render()}};$('hindiTip').onclick=()=>{if(!document.querySelector('.qt'))$('add').click();setTimeout(()=>document.querySelectorAll('.qt').at(-1)?.focus(),50);alert('अब Hindi keyboard या keyboard mic से सीधे हिंदी में लिख सकते हैं।')};$('backup').onclick=()=>{let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({papers:saved,current:state()})],{type:'application/json'}));a.download='SchoolPaperMaker_Backup.json';a.click()};$('restoreBtn').onclick=()=>$('restore').click();$('restore').onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);saved=x.papers||[];localStorage.setItem('spm_saved',JSON.stringify(saved));if(x.current){let s=x.current;Object.keys(s).filter(k=>k!=='questions').forEach(k=>{if($(k))$(k).value=s[k]});questions=s.questions||[]}render();alert('Backup restore हो गया।')}catch{alert('Backup गलत है।')}};r.readAsText(f)};
 $('previewPrint').onclick=()=>{document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');fitQuestionText();document.body.classList.remove('print-one','print-half','print-four');const l=val('layout');document.body.classList.add(l==='half'?'print-half':l==='four'?'print-four':'print-one');document.documentElement.style.setProperty('--print-margin','0');requestAnimationFrame(()=>window.print())};
 $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;btn.disabled=true;btn.textContent='⏳ PDF बन रहा है...';let clone=null,blobUrl='';try{if(typeof html2pdf!=='function')throw new Error('html2pdf not loaded');const source=$('preview');if(!source||!source.innerHTML.trim())throw new Error('preview is empty');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const images=[...source.querySelectorAll('img')];await Promise.all(images.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r})));fitQuestionText();await new Promise(r=>requestAnimationFrame(r));const layout=val('layout');const four=layout==='four',half=layout==='half';clone=source.cloneNode(true);clone.id='pdfExport';clone.style.cssText='position:fixed;left:-100000px;top:0;width:210mm;height:297mm;min-height:297mm;max-height:297mm;margin:0;padding:0;background:#fff;overflow:hidden;display:block';document.body.appendChild(clone);const sheet=clone.firstElementChild;if(layout==='one'){const p=clone.querySelector('.paper');p.style.width='210mm';p.style.height='297mm';p.style.minHeight='297mm';p.style.maxHeight='297mm';p.style.overflow='hidden'}else if(half){sheet.style.width='210mm';sheet.style.height='297mm';sheet.style.gridTemplateColumns='1fr';sheet.style.gridTemplateRows='148.5mm 148.5mm';[...sheet.querySelectorAll('.paper')].forEach(p=>{p.style.width='210mm';p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden'})}else{sheet.style.width='210mm';sheet.style.height='297mm';sheet.style.gridTemplateColumns='105mm 105mm';sheet.style.gridTemplateRows='148.5mm 148.5mm';[...sheet.querySelectorAll('.paper')].forEach(p=>{p.style.width='105mm';p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden'})}const name=((val('school')||'School')+' - '+(val('subject')||'Question Paper')).replace(/[\\/:*?"<>|]/g,'_');const opt={margin:0,filename:name+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollX:0,scrollY:0,windowWidth:794,windowHeight:1123},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},pagebreak:{mode:[]}};const pdf=await html2pdf().set(opt).from(clone).toPdf().get('pdf');const blob=pdf.output('blob');if(!blob||blob.size<1024)throw new Error('empty PDF blob');blobUrl=URL.createObjectURL(blob);const a=document.createElement('a');a.href=blobUrl;a.download=name+'.pdf';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>{if(blobUrl)URL.revokeObjectURL(blobUrl)},60000)}catch(e){console.error(e);if(blobUrl)URL.revokeObjectURL(blobUrl);alert('PDF नहीं बन पाया। पहले page refresh करें और फिर Download PDF दबाएँ।')}finally{if(clone)clone.remove();btn.disabled=false;btn.textContent=old}}>
-<script>
-/* Sarasvati PWA Update System */
+/* Direct GitHub version updater */
 (function(){
-  if(!('serviceWorker' in navigator)) return;
-  let refreshing=false;
-  navigator.serviceWorker.addEventListener('controllerchange',function(){
-    if(refreshing) return;
-    refreshing=true;
-    window.location.reload();
-  });
-  window.addEventListener('load',async function(){
-    try{
-      const reg=await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
-      if(reg.waiting) showUpdateReady(reg);
-      reg.addEventListener('updatefound',function(){
-        const nw=reg.installing;
-        if(!nw)return;
-        nw.addEventListener('statechange',function(){
-          if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateReady(reg);
-        });
-      });
-      window.__spmReg=reg;
-    }catch(e){console.warn('PWA service worker:',e)}
-  });
-  function showUpdateReady(reg){
-    window.__spmUpdateReady=true;
-    if(reg.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-  }
-  const oldUpdate=window.__spmManualUpdate;
-  window.__spmManualUpdate=async function(){
+  const VERSION_URL='./version.json?ts=';
+  const LOCAL_VERSION='2026.09.23.2';
+  async function checkForUpdate(){
     const b=document.getElementById('updateApp');
     const old=b?b.textContent:'🔄 Update';
     if(b){b.disabled=true;b.textContent='⏳ Checking...'}
     try{
-      const reg=window.__spmReg || await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});
-      await reg.update();
-      if(reg.waiting){
-        reg.waiting.postMessage({type:'SKIP_WAITING'});
+      const r=await fetch(VERSION_URL+Date.now(),{cache:'no-store'});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const v=await r.json();
+      if(v.version && v.version!==LOCAL_VERSION){
+        if(b)b.textContent='⬇️ Updating...';
+        const u=new URL(window.location.href);
+        u.searchParams.set('appver',v.version);
+        window.location.replace(u.toString());
         return;
       }
-      if(reg.installing){
-        b&&(b.textContent='⏳ Updating...');
-        return;
-      }
-      if(b){b.textContent='✓ Already latest';setTimeout(()=>{b.textContent=old;b.disabled=false},1600)}
+      if(b){b.textContent='✓ Latest version';setTimeout(()=>{b.textContent=old;b.disabled=false},1800)}
     }catch(e){
-      console.warn(e);
+      console.error('Update check failed',e);
       if(b){b.textContent=old;b.disabled=false}
-      alert('नया Update check नहीं हो पाया। अभी GitHub Pages तक connection verify नहीं हुआ। कृपया 10 सेकंड बाद फिर Update दबाएँ। आपका saved data सुरक्षित है।');
+      alert('Update check नहीं हो पाया। Internet connected होने के बाद 10 सेकंड बाद फिर कोशिश करें। Saved data सुरक्षित है।');
     }
-  };
-  document.addEventListener('DOMContentLoaded',function(){
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
     const b=document.getElementById('updateApp');
-    if(b) b.onclick=window.__spmManualUpdate;
+    if(b)b.onclick=checkForUpdate;
   });
 })();
 </script>
