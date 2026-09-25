@@ -26,64 +26,68 @@ $('add').onclick=()=>{questions.push({text:'',type:'Short',marks:1,options:[]});
 $('previewPrint').onclick=()=>{document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');window.print()};
 $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;btn.disabled=true;btn.textContent='⏳ PDF बन रहा है...';let blobUrl='';try{if(typeof html2pdf!=='function'){document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');window.print();return;}const el=$('preview');if(!el||!el.innerHTML.trim())throw new Error('preview is empty');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const images=[...el.querySelectorAll('img')];await Promise.all(images.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r})));fitQuestionText();await new Promise(r=>requestAnimationFrame(r));const name=((val('school')||'School')+' - '+(val('subject')||'Question Paper')).replace(/[\\/:*?"<>|]/g,'_');const four=val('layout')==='four';const half=val('layout')==='half';if(half){const s2=el.querySelector('.sheet2');if(!s2)throw new Error('half layout missing');s2.style.width='210mm';s2.style.height='297mm';s2.style.gridTemplateRows='148.5mm 148.5mm';s2.style.gridTemplateColumns='1fr';[...s2.querySelectorAll('.paper')].forEach(p=>{p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden';});}const opt={margin:0,filename:name+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollX:0,scrollY:0,windowWidth:Math.max(794,el.scrollWidth||document.documentElement.scrollWidth)},jsPDF:{unit:'mm',format:(val('paperSize')||'A4').toLowerCase(),orientation:(four||half)?'portrait':(val('orientation')||'portrait')},pagebreak:{mode:['css'],before:[],after:[],avoid:['.pq']}};const pdf=await html2pdf().set(opt).from(el).toPdf().get('pdf');const blob=pdf.output('blob');if(!blob||blob.size<1024)throw new Error('empty PDF blob');blobUrl=URL.createObjectURL(blob);const a=document.createElement('a');a.href=blobUrl;a.download=name+'.pdf';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>{if(blobUrl)URL.revokeObjectURL(blobUrl)},60000)}catch(e){console.error(e);if(blobUrl)URL.revokeObjectURL(blobUrl);alert('PDF नहीं बन पाया। पहले page refresh करें और फिर Download PDF दबाएँ।')}finally{btn.disabled=false;btn.textContent=old}};
 $('printSettings').onclick=()=>{$('printPanel').style.display=$('printPanel').style.display==='none'?'block':'none'};$('paperSize').onchange=e=>document.documentElement.style.setProperty('--print-size',e.target.value);$('orientation').onchange=e=>document.documentElement.style.setProperty('--print-orientation',e.target.value);$('margins').onchange=e=>document.documentElement.style.setProperty('--print-margin',e.target.value==='none'?'0':e.target.value==='small'?'5mm':'10mm');$('bgPrint').onchange=e=>document.body.classList.toggle('no-bg-print',e.target.value==='no');$('layout').onchange=renderPreview;let activeVoice=null,voiceBase='',voiceTargetIndex=-1;
-$('voice').onclick=async()=>{
+$('voice').onclick=()=>{
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   const btn=$('voice');
-  const reset=()=>{btn.disabled=false;btn.textContent='🎤 Voice Question';btn.dataset.voiceRunning='0';btn.dataset.voiceStop='0';btn._recognition=null};
+  if(!SR){alert('इस Chrome में Voice Recognition उपलब्ध नहीं है। Chrome में यह GitHub Pages link सीधे खोलकर फिर कोशिश करें।');return}
+  if(btn._recognition){
+    try{btn._recognition.stop()}catch(e){}
+    btn._recognition=null;
+    btn.textContent='🎤 Voice Question';
+    return;
+  }
   let target=document.activeElement&&document.activeElement.classList.contains('qt')?document.activeElement:null;
   if(!target){
     if(!questions.length){questions.push({text:'',type:'Short',marks:1,options:[]});render()}
     target=document.querySelectorAll('.qt').at(-1);
   }
-  if(!SR){
-    target?.focus();
-    alert('इस Chrome में Voice Recognition उपलब्ध नहीं है। Chrome अपडेट करके फिर कोशिश करें।');
-    return;
-  }
-  if(btn.dataset.voiceRunning==='1'){
-    btn.dataset.voiceStop='1';
-    if(btn._recognition){try{btn._recognition.stop()}catch(e){}}
-    return;
-  }
   const boxes=()=>[...document.querySelectorAll('.qt')];
-  const idx=boxes().indexOf(target);
-  if(idx<0){alert('पहले प्रश्न के box में click करें या Add Question दबाएँ।');return}
-  let finalText=questions[idx]?.text||'',stopped=false,restarting=false,recognition=null;
-  btn.dataset.voiceRunning='1';btn.dataset.voiceStop='0';btn.disabled=false;btn.textContent='🎤 शुरू हो रहा है...';
-  // SpeechRecognition must be started directly from the button click.
-  // Do not await getUserMedia here: on Android Chrome that can lose the user gesture
-  // and SpeechRecognition may appear to do nothing.
-  const startRecognition=()=>{
-    if(stopped||restarting)return;
-    restarting=true;recognition=new SR();btn._recognition=recognition;
-    recognition.lang=$('voiceLang').value||'hi-IN';
-    recognition.continuous=false;recognition.interimResults=true;recognition.maxAlternatives=1;
-    recognition.onstart=()=>{restarting=false;btn.textContent='⏹️ सुन रहा हूँ... बोलिए'};
-    recognition.onresult=e=>{
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        if(!e.results[i].isFinal)continue;
+  let idx=boxes().indexOf(target);
+  if(idx<0)return;
+  const r=new SR();
+  btn._recognition=r;
+  btn.textContent='⏹️ सुन रहा हूँ...';
+  r.lang=$('voiceLang').value||'hi-IN';
+  r.continuous=false;
+  r.interimResults=false;
+  r.maxAlternatives=1;
+  r.onstart=()=>{btn.textContent='⏹️ सुन रहा हूँ... बोलिए'};
+  r.onaudiostart=()=>{btn.textContent='⏹️ आवाज़ सुन रहा हूँ...'};
+  r.onsoundstart=()=>{btn.textContent='⏹️ आवाज़ मिली...'};
+  r.onresult=e=>{
+    let heard='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal){
         const t=(e.results[i][0]?.transcript||'').trim();
-        if(!t)continue;
-        finalText+=(finalText?' ':'')+t;questions[idx].text=finalText;
-        const q=boxes()[idx];if(q){q.value=finalText;q.focus();q.setSelectionRange(q.value.length,q.value.length)}
-        renderPreview();
+        if(t)heard+=(heard?' ':'')+t;
       }
-    };
-    recognition.onerror=e=>{
-      const code=e.error||'unknown';
-      if(code==='aborted')return;
-      if(code==='not-allowed'||code==='service-not-allowed'){stopped=true;reset();alert('Chrome ने Speech Recognition की अनुमति नहीं दी। Site को सीधे Chrome में खोलकर फिर कोशिश करें।');return}
-      if(code==='audio-capture'){stopped=true;reset();alert('Chrome को microphone audio नहीं मिल रहा।');return}
-      if(code==='network'){stopped=true;reset();alert('Voice Recognition service के लिए Internet ON करके फिर कोशिश करें।');return}
-      btn.textContent='🎤 फिर सुन रहा हूँ...';
-    };
-    recognition.onend=()=>{
-      if(stopped||btn.dataset.voiceStop==='1'){stopped=true;reset();return}
-      restarting=false;setTimeout(()=>{if(!stopped&&btn.dataset.voiceStop!=='1')startRecognition()},250);
-    };
-    try{recognition.start()}catch(e){restarting=false;setTimeout(()=>{if(!stopped&&btn.dataset.voiceStop!=='1')startRecognition()},400)}
+    }
+    if(!heard)return;
+    const q=questions[idx];
+    if(!q)return;
+    q.text=(q.text?String(q.text).trim()+' ':'')+heard;
+    const fresh=boxes()[idx];
+    if(fresh){fresh.value=q.text;fresh.focus();fresh.setSelectionRange(fresh.value.length,fresh.value.length)}
+    renderPreview();
   };
-  startRecognition();
+  r.onerror=e=>{
+    btn._recognition=null;btn.textContent='🎤 Voice Question';
+    const code=e.error||'unknown';
+    if(code==='not-allowed'||code==='service-not-allowed')alert('Microphone/Speech permission Allow करें। Chrome में 🔒 → Site settings → Microphone → Allow करें।');
+    else if(code==='no-speech')alert('आवाज़ नहीं मिली। Voice Question दबाकर mic के पास साफ बोलें।');
+    else if(code==='network')alert('Voice service के लिए Internet ON करके फिर कोशिश करें।');
+    else if(code!=='aborted')alert('Voice error: '+code);
+  };
+  r.onend=()=>{
+    btn._recognition=null;
+    btn.textContent='🎤 Voice Question';
+    const fresh=boxes()[idx];
+    if(fresh){fresh.focus();fresh.setSelectionRange(fresh.value.length,fresh.value.length)}
+  };
+  try{r.start()}catch(err){
+    btn._recognition=null;btn.textContent='🎤 Voice Question';
+    alert('Voice start नहीं हुआ। Chrome में microphone Allow करके फिर दबाएँ।');
+  }
 };
 ['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;
 const doAppUpdate=async()=>{
