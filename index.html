@@ -26,122 +26,46 @@ $('add').onclick=()=>{questions.push({text:'',type:'Short',marks:1,options:[]});
 $('previewPrint').onclick=()=>{document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');window.print()};
 $('previewPdf').onclick=async()=>{const btn=$('previewPdf'),old=btn.textContent;btn.disabled=true;btn.textContent='⏳ PDF बन रहा है...';let blobUrl='';try{if(typeof html2pdf!=='function'){document.title=(val('school')||'School')+' - '+(val('subject')||'Question Paper');window.print();return;}const el=$('preview');if(!el||!el.innerHTML.trim())throw new Error('preview is empty');await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));const images=[...el.querySelectorAll('img')];await Promise.all(images.map(im=>im.complete?Promise.resolve():new Promise(r=>{im.onload=r;im.onerror=r})));fitQuestionText();await new Promise(r=>requestAnimationFrame(r));const name=((val('school')||'School')+' - '+(val('subject')||'Question Paper')).replace(/[\\/:*?"<>|]/g,'_');const four=val('layout')==='four';const half=val('layout')==='half';if(half){const s2=el.querySelector('.sheet2');if(!s2)throw new Error('half layout missing');s2.style.width='210mm';s2.style.height='297mm';s2.style.gridTemplateRows='148.5mm 148.5mm';s2.style.gridTemplateColumns='1fr';[...s2.querySelectorAll('.paper')].forEach(p=>{p.style.height='148.5mm';p.style.minHeight='148.5mm';p.style.maxHeight='148.5mm';p.style.overflow='hidden';});}const opt={margin:0,filename:name+'.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollX:0,scrollY:0,windowWidth:Math.max(794,el.scrollWidth||document.documentElement.scrollWidth)},jsPDF:{unit:'mm',format:(val('paperSize')||'A4').toLowerCase(),orientation:(four||half)?'portrait':(val('orientation')||'portrait')},pagebreak:{mode:['css'],before:[],after:[],avoid:['.pq']}};const pdf=await html2pdf().set(opt).from(el).toPdf().get('pdf');const blob=pdf.output('blob');if(!blob||blob.size<1024)throw new Error('empty PDF blob');blobUrl=URL.createObjectURL(blob);const a=document.createElement('a');a.href=blobUrl;a.download=name+'.pdf';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>{if(blobUrl)URL.revokeObjectURL(blobUrl)},60000)}catch(e){console.error(e);if(blobUrl)URL.revokeObjectURL(blobUrl);alert('PDF नहीं बन पाया। पहले page refresh करें और फिर Download PDF दबाएँ।')}finally{btn.disabled=false;btn.textContent=old}};
 $('printSettings').onclick=()=>{$('printPanel').style.display=$('printPanel').style.display==='none'?'block':'none'};$('paperSize').onchange=e=>document.documentElement.style.setProperty('--print-size',e.target.value);$('orientation').onchange=e=>document.documentElement.style.setProperty('--print-orientation',e.target.value);$('margins').onchange=e=>document.documentElement.style.setProperty('--print-margin',e.target.value==='none'?'0':e.target.value==='small'?'5mm':'10mm');$('bgPrint').onchange=e=>document.body.classList.toggle('no-bg-print',e.target.value==='no');$('layout').onchange=renderPreview;let activeVoice=null,voiceBase='',voiceTargetIndex=-1;
-$('voice').onclick=()=>{
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+function startVoiceQuestion(){
   const btn=$('voice');
-  const reset=()=>{btn.disabled=false;btn.textContent='🎤 Voice Question';btn.dataset.voiceRunning='0';btn._recognition=null};
-  if(!SR){
-    let target=document.activeElement&&document.activeElement.classList.contains('qt')?document.activeElement:null;
-    if(!target){
-      if(!questions.length){questions.push({text:'',type:'Short',marks:1,options:[]});render()}
-      target=document.querySelectorAll('.qt').at(-1);
-    }
-    target?.focus();
-    alert('इस Chrome में Voice Recognition उपलब्ध नहीं है। Chrome में GitHub Pages वाला PWA सीधे खोलकर फिर कोशिश करें।');
-    return;
-  }
-  if(btn.dataset.voiceRunning==='1'){
-    if(btn._recognition){try{btn._recognition.stop()}catch(e){}}
-    return;
-  }
-
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){alert('इस Chrome में Voice Recognition उपलब्ध नहीं है।');return;}
+  if(activeVoice){try{activeVoice.stop()}catch(e){}activeVoice=null;btn.textContent='🎤 Voice Question';return;}
   let target=document.activeElement&&document.activeElement.classList.contains('qt')?document.activeElement:null;
-  if(!target){
-    if(!questions.length){questions.push({text:'',type:'Short',marks:1,options:[]});render()}
-    target=document.querySelectorAll('.qt').at(-1);
-  }
-  const boxes=()=>[...document.querySelectorAll('.qt')];
-  const idx=boxes().indexOf(target);
+  if(!target){if(!questions.length){questions.push({text:'',type:'Short',marks:1,options:[]});render();}target=document.querySelectorAll('.qt').at(-1);}
+  if(!target)return;
+  const boxes=()=>[...document.querySelectorAll('.qt')],idx=boxes().indexOf(target);
   if(idx<0)return;
-
-  const r=new SR();
-  btn._recognition=r;
-  btn.dataset.voiceRunning='1';
-  btn.textContent='⏳ Mic शुरू हो रहा है...';
-  r.lang=$('voiceLang').value||'hi-IN';
-  r.continuous=false;
-  r.interimResults=true;
-  r.maxAlternatives=1;
-  try{r.processLocally=false}catch(e){}
-
-  let base=questions[idx]?.text||'';
-  let micStream=null;
-  let started=false;
-
-  r.onstart=()=>{started=true;btn.textContent='🎙️ सुन रहा हूँ... बोलिए'};
-  r.onaudiostart=()=>{btn.textContent='🎙️ आवाज़ सुन रहा हूँ...'};
-  r.onsoundstart=()=>{btn.textContent='🎙️ आवाज़ मिली...'};
-  r.onspeechstart=()=>{btn.textContent='🎙️ बोलिए...'};
-
+  const r=new SR();activeVoice=r;voiceTargetIndex=idx;voiceBase=questions[idx].text||'';
+  btn.textContent='🎙️ सुन रहा हूँ...';
+  r.lang=$('voiceLang').value||'hi-IN';r.continuous=false;r.interimResults=true;r.maxAlternatives=1;
+  r.onstart=()=>btn.textContent='🎙️ बोलिए...';
+  r.onaudiostart=()=>btn.textContent='🎙️ आवाज़ सुन रहा हूँ...';
+  r.onspeechstart=()=>btn.textContent='🎙️ लिख रहा हूँ...';
   r.onresult=e=>{
-    let finalText='',interimText='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=(e.results[i][0]?.transcript||'').trim();
-      if(e.results[i].isFinal)finalText+=(finalText?' ':'')+t;
-      else interimText+=(interimText?' ':'')+t;
-    }
-    const spoken=(finalText||interimText).trim();
-    if(!spoken)return;
-    const text=(base?(base+' '):'')+spoken;
+    let out='';
+    for(let i=e.resultIndex;i<e.results.length;i++)out+=(out?' ':'')+(e.results[i][0]?.transcript||'').trim();
+    out=out.trim();if(!out)return;
+    const text=(voiceBase?(voiceBase+' '):'')+out;
     questions[idx].text=text;
-    const q=boxes()[idx];
-    if(q){q.value=text;q.focus();q.setSelectionRange(text.length,text.length)}
+    const q=boxes()[idx];if(q){q.value=text;q.focus();q.setSelectionRange(q.value.length,q.value.length);}
     renderPreview();
-    if(finalText)base=text;
+    if(e.results[e.results.length-1].isFinal)voiceBase=text;
   };
-
   r.onerror=e=>{
     const code=e.error||'unknown';
-    if(code==='aborted'){reset();return}
-    reset();
-    if(code==='not-allowed'||code==='service-not-allowed')
-      alert('Microphone permission Allow करें। Chrome में 🔒 → Site settings → Microphone → Allow करें।');
-    else if(code==='no-speech')
-      alert('आवाज़ नहीं मिली। Voice Question दबाकर mic के पास साफ बोलें।');
-    else if(code==='audio-capture')
-      alert('Microphone capture नहीं हो पाया। फोन का mic किसी दूसरी app में चल रहा हो तो उसे बंद करके फिर कोशिश करें।');
-    else if(code==='network')
-      alert('Voice service के लिए Internet ON रखें और फिर कोशिश करें।');
-    else if(code==='language-not-supported')
-      alert('इस language की Voice Recognition इस Chrome में उपलब्ध नहीं है। ऊपर से English चुनकर भी एक बार try करें।');
-    else
-      alert('Voice error: '+code);
+    activeVoice=null;btn.textContent='🎤 Voice Question';
+    if(code==='aborted')return;
+    if(code==='not-allowed'||code==='service-not-allowed')alert('Chrome में Microphone की अनुमति Allow करें।');
+    else if(code==='no-speech')alert('आवाज़ नहीं मिली। Voice Question दबाकर साफ बोलें।');
+    else if(code==='network')alert('Voice service के लिए Internet ON रखें।');
+    else alert('Voice शुरू नहीं हुआ: '+code);
   };
-
-  r.onend=()=>{
-    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
-    reset();
-    const q=boxes()[idx];
-    if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}
-  };
-
-  const directStart=()=>{
-    if(started||btn._recognition!==r)return;
-    try{r.start()}catch(e){
-      reset();
-      alert('Voice start नहीं हुआ। Chrome में Microphone Allow करके फिर दबाएँ।');
-    }
-  };
-
-  /*
-   * Android Chrome में पहले real microphone stream लेना और उसी track को
-   * SpeechRecognition को देना अधिक स्पष्ट mic path देता है। Permission पहले
-   * से Allow है तो यह तुरंत चलता है; track-mode न चले तो normal start() fallback है.
-   */
-  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-    navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-      if(btn._recognition!==r){stream.getTracks().forEach(t=>t.stop());return}
-      micStream=stream;
-      const track=stream.getAudioTracks()[0];
-      try{
-        if(track&&typeof r.start==='function'){r.start(track);started=true}
-        else directStart();
-      }catch(e){directStart()}
-    }).catch(()=>directStart());
-  }else{
-    directStart();
-  }
-};['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;
+  r.onend=()=>{activeVoice=null;btn.textContent='🎤 Voice Question';};
+  try{r.start();}catch(e){activeVoice=null;btn.textContent='🎤 Voice Question';alert('Voice शुरू नहीं हुआ। Page refresh करके फिर कोशिश करें।');}
+}
+$('voice').onclick=startVoiceQuestion;
+['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;
 const doAppUpdate=async()=>{
   const b=$('updateApp');
   const old=b.textContent;
