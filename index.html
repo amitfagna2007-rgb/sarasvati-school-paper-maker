@@ -49,18 +49,10 @@ $('voice').onclick=async()=>{
   const idx=boxes().indexOf(target);
   if(idx<0){alert('पहले प्रश्न के box में click करें या Add Question दबाएँ।');return}
   let finalText=questions[idx]?.text||'',stopped=false,restarting=false,recognition=null;
-  btn.dataset.voiceRunning='1';btn.dataset.voiceStop='0';btn.disabled=false;btn.textContent='🎤 Mic जाँच रहा हूँ...';
-  if(navigator.mediaDevices?.getUserMedia){
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      stream.getTracks().forEach(t=>t.stop());
-    }catch(e){
-      reset();
-      const n=e?.name||'unknown';
-      alert(n==='NotAllowedError'||n==='PermissionDeniedError'?'Microphone permission Allow करें।':n==='NotFoundError'?'Microphone नहीं मिला।':'Microphone शुरू नहीं हो पाया: '+n);
-      return;
-    }
-  }
+  btn.dataset.voiceRunning='1';btn.dataset.voiceStop='0';btn.disabled=false;btn.textContent='🎤 शुरू हो रहा है...';
+  // SpeechRecognition must be started directly from the button click.
+  // Do not await getUserMedia here: on Android Chrome that can lose the user gesture
+  // and SpeechRecognition may appear to do nothing.
   const startRecognition=()=>{
     if(stopped||restarting)return;
     restarting=true;recognition=new SR();btn._recognition=recognition;
