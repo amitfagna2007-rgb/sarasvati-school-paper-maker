@@ -23,8 +23,13 @@ function startVoiceQuestion(){
   if(!target)return;
   const boxes=()=>[...document.querySelectorAll('.qt')],idx=boxes().indexOf(target);
   if(idx<0)return;
-  const r=new SR();btn._recognition=r;btn.textContent='🎙️ सुन रहा हूँ...';
-  r.lang=document.getElementById('voiceLang').value||'hi-IN';r.continuous=false;r.interimResults=false;r.maxAlternatives=1;
+  const selectedLang=document.getElementById('voiceLang').value||'hi-IN';
+  const beginRecognition=()=>{
+    const r=new SR();btn._recognition=r;btn.textContent='🎙️ सुन रहा हूँ...';
+    r.lang=selectedLang;r.continuous=false;r.interimResults=false;r.maxAlternatives=1;
+    setupRecognition(r);
+  };
+  const setupRecognition=(r)=>{
   const old=questions[idx]?.text||'';
   const reset=()=>{if(btn._recognition===r)btn._recognition=null;btn.textContent='🎤 Voice Question';};
   r.onstart=()=>{btn.textContent='🎙️ बोलिए...';};
@@ -38,7 +43,8 @@ function startVoiceQuestion(){
   };
   r.onerror=e=>{
     const code=e.error||'unknown';reset();
-    if(code==='not-allowed'||code==='service-not-allowed')alert('Chrome में Microphone को Allow करें।');
+    if(code==='language-not-supported' && selectedLang==='sa-IN')alert('इस Chrome में संस्कृत Voice Recognition समर्थित नहीं है। हिंदी/English Voice Recognition वैसे ही काम करेगा।');
+    else if(code==='not-allowed'||code==='service-not-allowed')alert('Chrome में Microphone को Allow करें।');
     else if(code==='no-speech')alert('आवाज़ नहीं मिली। 🎤 दबाकर साफ बोलें।');
     else if(code==='network')alert('Voice Recognition के लिए Internet ON रखें।');
     else if(code==='audio-capture')alert('Chrome को microphone नहीं मिल रहा।');
@@ -46,6 +52,15 @@ function startVoiceQuestion(){
   };
   r.onend=()=>reset();
   try{r.start();}catch(e){reset();alert('Voice शुरू नहीं हुआ। Chrome page को refresh करके फिर कोशिश करें।');}
+  };
+  if(selectedLang==='sa-IN' && typeof SR.available==='function'){
+    Promise.resolve(SR.available({langs:['sa-IN'],processLocally:false})).then(status=>{
+      if(status==='available') beginRecognition();
+      else alert('इस Chrome में संस्कृत Voice Recognition उपलब्ध नहीं है। Chrome में Sanskrit speech support उपलब्ध होने पर ही संस्कृत में आवाज़ से लिख पाएगा।');
+    }).catch(()=>beginRecognition());
+  }else{
+    beginRecognition();
+  }
 }
 
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));let questions=[],saved=JSON.parse(localStorage.getItem('spm_saved')||'[]'),questionBank=JSON.parse(localStorage.getItem('spm_question_bank')||'[]');function val(id){return $(id).value}function state(){return{school:val('school'),exam:val('exam'),cls:val('cls'),subject:val('subject'),date:val('date'),time:val('time'),total:val('total'),wm:val('wm'),questions}}
