@@ -11,94 +11,7 @@
 <section class="card noprint"><h2>Saved Papers & Backup</h2><div id="savedList"></div><p style="font-size:12px;color:#666">Saved papers इसी device पर रहते हैं।</p></section>
 <section class="card noprint" id="printPanel" style="display:none"><h2>🖨️ Print Settings</h2><div class="grid"><label>Paper Size<select id="paperSize"><option>A4</option><option>Letter</option></select></label><label>Orientation<select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><label>Margins<select id="margins"><option value="default">Normal</option><option value="small">Small</option><option value="none">None</option></select></label><label>Print Background<select id="bgPrint"><option value="yes">Yes</option><option value="no">No</option></select></label></div></section>
 <section class="card preview"><h2 class="noprint">Paper Preview</h2><div class="actions noprint" style="margin:0 0 12px"><div style="border:1px solid #d5dbe2;border-radius:8px;padding:8px"><label style="display:block">📄 Paper Layout<select id="layout" style="width:auto;margin-left:6px"><option value="one">1 Copy</option><option value="half">1/2 Page — 2 Copies</option><option value="four">1/4 Page — 4 Copies</option></select></label></div><button class="primary" id="previewPrint">🖨️ Print Paper</button><button id="previewPdf">⬇️ Download PDF</button><button id="printSettings">⚙️ Print Settings</button></div><div id="preview"></div></section></main>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script><script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/ort.all.min.js"></script><script>
-let sanskritASR=null;
-async function startSanskritASR(idx,btn){
-  if(btn._sanskritRecorder){
-    try{btn._sanskritRecorder.stop()}catch(e){}
-    return;
-  }
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    alert('इस Chrome में microphone recording उपलब्ध नहीं है।');
-    return;
-  }
-  try{
-    btn.disabled=false;
-    btn.textContent='⏳ Sanskrit model तैयार हो रहा है...';
-    if(!sanskritASR){
-      sanskritASR=(async()=>{
-        if(!window.ort)throw new Error('ASR engine load नहीं हुआ');
-        ort.env.logLevel='warning';
-        ort.env.wasm.numThreads=1;
-        ort.env.wasm.wasmPaths='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.29.0/dist/';
-        const base='https://huggingface.co/gnumanth/sushrota-sanskrit-asr-onnx/resolve/main/';
-        const prep=await ort.InferenceSession.create(base+'preprocessor.onnx',{executionProviders:['wasm']});
-        const asr=await ort.InferenceSession.create(base+'sushrota_sanskrit_ctc_int8.onnx',{executionProviders:['wasm']});
-        const vocab=await (await fetch(base+'sanskrit_vocab.json',{cache:'force-cache'})).json();
-        return {prep,asr,vocab};
-      })();
-    }
-    const model=await sanskritASR;
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
-    const mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus'].find(x=>MediaRecorder.isTypeSupported(x))||'';
-    const rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);
-    const chunks=[];
-    btn._sanskritRecorder=rec;
-    btn.textContent='🎙️ संस्कृत बोलिए...';
-    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
-    rec.onerror=()=>{stream.getTracks().forEach(t=>t.stop());btn._sanskritRecorder=null;btn.textContent='🎤 Voice Question';alert('Sanskrit recording में समस्या हुई।')};
-    rec.onstop=async()=>{
-      btn._sanskritRecorder=null;
-      stream.getTracks().forEach(t=>t.stop());
-      btn.textContent='⏳ Sanskrit लिख रहा हूँ...';
-      try{
-        const blob=new Blob(chunks,{type:rec.mimeType||'audio/webm'});
-        const ac=new (window.AudioContext||window.webkitAudioContext)();
-        const buf=await ac.decodeAudioData(await blob.arrayBuffer());
-        const src=buf.getChannelData(0);
-        const ratio=16000/buf.sampleRate;
-        const n=Math.max(1,Math.round(src.length*ratio));
-        const pcm=new Float32Array(n);
-        for(let i=0;i<n;i++){
-          const pos=i/ratio,lo=Math.floor(pos),hi=Math.min(src.length-1,lo+1),f=pos-lo;
-          pcm[i]=(src[lo]||0)*(1-f)+(src[hi]||0)*f;
-        }
-        await ac.close();
-        const audioTensor=new ort.Tensor('float32',pcm,[1,pcm.length]);
-        const lenTensor=new ort.Tensor('int64',BigInt64Array.from([BigInt(pcm.length)]),[1]);
-        const feats=await model.prep.run({audio_signal:audioTensor,length:lenTensor});
-        const logits=await model.asr.run({audio_signal:feats.features,length:feats.feature_lengths});
-        const data=logits.logits.data;
-        const dims=logits.logits.dims;
-        const time=dims[dims.length-2],classes=dims[dims.length-1];
-        const out=[];let prev=-1;
-        for(let t=0;t<time;t++){
-          let best=0,bestVal=-Infinity;
-          for(let k=0;k<classes;k++){const v=data[t*classes+k];if(v>bestVal){bestVal=v;best=k}}
-          if(best!==prev&&best!==0)out.push(model.vocab[best]??'');
-          prev=best;
-        }
-        const text=out.join('').replace(/▁/g,' ').replace(/\\s+/g,' ').trim();
-        if(!text)throw new Error('कोई Sanskrit text नहीं मिला');
-        questions[idx].text=((questions[idx].text||'')?(questions[idx].text+' '):'')+text;
-        const q=[...document.querySelectorAll('.qt')][idx];
-        if(q){q.value=questions[idx].text;q.focus();q.setSelectionRange(q.value.length,q.value.length)}
-        renderPreview();
-      }catch(e){
-        console.error(e);
-        alert('Sanskrit voice text नहीं बन पाया। पहली बार लगभग 180 MB Sanskrit model download हो सकता है; Internet ON रखकर फिर कोशिश करें।');
-      }finally{
-        btn.textContent='🎤 Voice Question';
-      }
-    };
-    rec.start();
-  }catch(e){
-    console.error(e);
-    btn._sanskritRecorder=null;
-    btn.textContent='🎤 Voice Question';
-    alert('Sanskrit Voice शुरू नहीं हो पाया। Microphone को Allow करें और Internet ON रखें।');
-  }
-}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script><script>
 let activeVoice=null,voiceBase='',voiceTargetIndex=-1;
 function startVoiceQuestion(){
   const btn=document.getElementById('voice');
@@ -141,7 +54,7 @@ function startVoiceQuestion(){
   try{r.start();}catch(e){reset();alert('Voice शुरू नहीं हुआ। Chrome page को refresh करके फिर कोशिश करें।');}
   };
   if(selectedLang==='sa-IN'){
-    startSanskritASR(idx,btn);
+    alert('इस Chrome में संस्कृत Voice Recognition समर्थित नहीं है। हिंदी/English Voice Recognition वैसे ही काम करेगा।');
     return;
   }
   beginRecognition();
