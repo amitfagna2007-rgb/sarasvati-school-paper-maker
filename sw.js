@@ -1,4 +1,4 @@
-const CACHE='sarasvati-paper-maker-v39';
+const CACHE='sarasvati-paper-maker-v40';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./school_logo.svg','./sw.js','./version.json'];
 
 self.addEventListener('message',e=>{if(e.data&&e.data.type==='SKIP_WAITING')self.skipWaiting()});
