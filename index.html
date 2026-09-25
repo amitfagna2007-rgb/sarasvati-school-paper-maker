@@ -58,7 +58,6 @@ $('voice').onclick=()=>{
   btn._recognition=r;
   btn.dataset.voiceRunning='1';
   btn.textContent='⏳ Mic शुरू हो रहा है...';
-
   r.lang=$('voiceLang').value||'hi-IN';
   r.continuous=false;
   r.interimResults=true;
@@ -66,13 +65,13 @@ $('voice').onclick=()=>{
   try{r.processLocally=false}catch(e){}
 
   let base=questions[idx]?.text||'';
-  let heardAny=false;
   let micStream=null;
+  let started=false;
 
-  r.onstart=()=>{btn.textContent='🎙️ सुन रहा हूँ... बोलिए';};
-  r.onaudiostart=()=>{btn.textContent='🎙️ आवाज़ सुन रहा हूँ...';};
-  r.onsoundstart=()=>{heardAny=true;btn.textContent='🎙️ आवाज़ मिली...';};
-  r.onspeechstart=()=>{heardAny=true;btn.textContent='🎙️ बोलिए...';};
+  r.onstart=()=>{started=true;btn.textContent='🎙️ सुन रहा हूँ... बोलिए'};
+  r.onaudiostart=()=>{btn.textContent='🎙️ आवाज़ सुन रहा हूँ...'};
+  r.onsoundstart=()=>{btn.textContent='🎙️ आवाज़ मिली...'};
+  r.onspeechstart=()=>{btn.textContent='🎙️ बोलिए...'};
 
   r.onresult=e=>{
     let finalText='',interimText='';
@@ -116,7 +115,8 @@ $('voice').onclick=()=>{
     if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}
   };
 
-  const startRecognition=()=>{
+  const directStart=()=>{
+    if(started||btn._recognition!==r)return;
     try{r.start()}catch(e){
       reset();
       alert('Voice start नहीं हुआ। Chrome में Microphone Allow करके फिर दबाएँ।');
@@ -124,22 +124,23 @@ $('voice').onclick=()=>{
   };
 
   /*
-   * Keep recognition.start() inside the original button click so Android Chrome
-   * keeps the user gesture. At the same time, request microphone access without
-   * waiting for it; if the browser allows a MediaStreamTrack input, use it.
-   * If that overload is unsupported, fall back to the normal start().
+   * Android Chrome में पहले real microphone stream लेना और उसी track को
+   * SpeechRecognition को देना अधिक स्पष्ट mic path देता है। Permission पहले
+   * से Allow है तो यह तुरंत चलता है; track-mode न चले तो normal start() fallback है.
    */
-  try{
-    if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
-      navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-        if(btn._recognition!==r){stream.getTracks().forEach(t=>t.stop());return}
-        micStream=stream;
-        const track=stream.getAudioTracks()[0];
-        try{r.start(track)}catch(e){startRecognition()}
-      }).catch(()=>{});
-    }
-    startRecognition();
-  }catch(e){reset();alert('Microphone/Voice शुरू नहीं हो पाया। Chrome में Microphone Allow करके फिर कोशिश करें।')}
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+      if(btn._recognition!==r){stream.getTracks().forEach(t=>t.stop());return}
+      micStream=stream;
+      const track=stream.getAudioTracks()[0];
+      try{
+        if(track&&typeof r.start==='function'){r.start(track);started=true}
+        else directStart();
+      }catch(e){directStart()}
+    }).catch(()=>directStart());
+  }else{
+    directStart();
+  }
 };['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;
 const doAppUpdate=async()=>{
   const b=$('updateApp');
