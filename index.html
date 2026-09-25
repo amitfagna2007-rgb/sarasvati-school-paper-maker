@@ -201,5 +201,51 @@ $('voice').onclick=async()=>{
 
   startRecognition();
 };
-['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;if('serviceWorker'in navigator){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{swReg=reg;$('updateApp').onclick=async()=>{const b=$('updateApp');const old=b.textContent;b.disabled=true;b.textContent='⏳ Update check...';try{await reg.update();setTimeout(()=>{if(!refreshing){b.disabled=false;b.textContent='🔄 Update';alert('Update check पूरा हुआ। अगर नया version मिला है तो app अपने आप refresh होगा।')}},1800)}catch(e){b.disabled=false;b.textContent=old;alert('Update check के लिए Internet ON करें।')}};reg.addEventListener('updatefound',()=>{const nw=reg.installing;if(!nw)return;nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller){refreshing=true;location.reload()}})})}).catch(()=>{$('updateApp').onclick=()=>alert('Update check के लिए Internet ON करें।')});}render();
+['school','exam','cls','subject','date','time','total','wm'].forEach(id=>$(id).oninput=renderPreview);let promptEvent=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();promptEvent=e;$('install').style.display='inline-block'});$('install').onclick=async()=>{if(promptEvent){await promptEvent.prompt();promptEvent=null;return}alert('Chrome ने अभी install prompt उपलब्ध नहीं किया है। Chrome के ⋮ मेन्यू में Add to Home screen चुनें। अगर यह विकल्प भी नहीं है, तो Chrome में इसी HTTPS लिंक को सीधे खोलकर एक बार refresh करें।')};let swReg=null;let refreshing=false;
+const doAppUpdate=async()=>{
+  const b=$('updateApp');
+  const old=b.textContent;
+  b.disabled=true;b.textContent='⏳ Checking...';
+  try{
+    let reg=swReg;
+    if(!reg&&'serviceWorker'in navigator) reg=await navigator.serviceWorker.getRegistration();
+    if(!reg&&'serviceWorker'in navigator) reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'});
+    swReg=reg;
+    if(reg){
+      await reg.update();
+      const waitForInstall=()=>{
+        if(!reg.installing)return false;
+        const nw=reg.installing;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'&&navigator.serviceWorker.controller){
+            refreshing=true;location.reload();
+          }
+        });
+        return true;
+      };
+      if(!waitForInstall()){
+        setTimeout(()=>{if(!refreshing){b.disabled=false;b.textContent='🔄 Update';alert('Update check पूरा हुआ। अगर नया version उपलब्ध है तो app refresh होगा।')}},1200);
+      }
+    }else{
+      b.disabled=false;b.textContent=old;alert('Update के लिए Chrome में Internet ON करें।');
+    }
+  }catch(e){
+    b.disabled=false;b.textContent=old;alert('Update नहीं हो पाया। Internet ON करके फिर 🔄 Update दबाएँ।');
+  }
+};
+$('updateApp').onclick=doAppUpdate;
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+    swReg=reg;
+    reg.addEventListener('updatefound',()=>{
+      const nw=reg.installing;if(!nw)return;
+      nw.addEventListener('statechange',()=>{
+        if(nw.state==='installed'&&navigator.serviceWorker.controller){
+          refreshing=true;location.reload();
+        }
+      });
+    });
+  }).catch(()=>{});
+}
+render();
 </script></body></html>
