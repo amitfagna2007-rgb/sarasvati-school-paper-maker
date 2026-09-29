@@ -110,6 +110,10 @@ $('updateApp').onclick=doAppUpdate;
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
     swReg=reg;
+    const checkUpdate=()=>reg.update().catch(()=>{});
+    checkUpdate();
+    window.addEventListener('online',checkUpdate);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate()});
     reg.addEventListener('updatefound',()=>{
       const nw=reg.installing;if(!nw)return;
       nw.addEventListener('statechange',()=>{
