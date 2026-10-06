@@ -211,28 +211,30 @@ function fitNoticeText(){
   body.style.minHeight='0';
   body.style.height='auto';
   body.style.overflow='visible';
-  let size=22;
-  body.style.fontSize=size+'px';
+  body.style.fontSize='22px';
   body.style.lineHeight='1.55';
+  const ps=getComputedStyle(p);
+  const padX=(parseFloat(ps.paddingLeft)||14)+(parseFloat(ps.paddingRight)||14);
+  const padY=(parseFloat(ps.paddingTop)||14)+(parseFloat(ps.paddingBottom)||14);
+  const maxW=Math.max(160,p.clientWidth-padX-2);
   const head=p.querySelector('.noticeHead');
+  const title=p.querySelector('.noticeTitle');
   const meta=p.querySelector('.noticeMeta');
   const sign=p.querySelector('.noticeSign');
-  const side=Math.max(8,parseFloat(getComputedStyle(p).paddingLeft)||14);
-  const maxW=Math.max(120,p.clientWidth-side*2);
-  const maxH=Math.max(120,p.clientHeight-(head?.offsetHeight||0)-(meta?.offsetHeight||0)-(sign?.offsetHeight||0)-90);
-  let guard=0;
-  while(size<80&&guard++<140){
-    body.style.fontSize=(size+0.5)+'px';
+  const fixed=(head?.offsetHeight||0)+(title?.offsetHeight||0)+(meta?.offsetHeight||0)+(sign?.offsetHeight||0);
+  const maxH=Math.max(140,p.clientHeight-padY-fixed-18);
+  let low=22,high=180,best=22;
+  for(let guard=0;guard<12&&low<=high;guard++){
+    const mid=Math.floor((low+high)/2);
+    body.style.fontSize=mid+'px';
     body.style.lineHeight='1.55';
-    if(body.scrollWidth>maxW||body.scrollHeight>maxH){
-      body.style.fontSize=size+'px';
-      break;
-    }
-    size+=0.5;
+    if(body.scrollWidth<=maxW&&body.scrollHeight<=maxH){
+      best=mid;low=mid+1;
+    }else high=mid-1;
   }
-  const finalSize=Math.max(22,size);
-  body.style.fontSize=finalSize+'px';
-  p.style.setProperty('--notice-body-size',finalSize+'px');
+  body.style.fontSize=best+'px';
+  body.style.lineHeight='1.55';
+  p.style.setProperty('--notice-body-size',best+'px');
   if(wasHidden)card.style.display='none';
 }
 $('downloadNoticePdf').onclick=async()=>{
