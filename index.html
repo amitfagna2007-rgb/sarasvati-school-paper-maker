@@ -230,7 +230,9 @@ function fitNoticeText(){
     }
     size+=0.5;
   }
-  body.style.fontSize=Math.max(22,size)+'px';
+  const finalSize=Math.max(22,size);
+  body.style.fontSize=finalSize+'px';
+  p.style.setProperty('--notice-body-size',finalSize+'px');
   if(wasHidden)card.style.display='none';
 }
 $('downloadNoticePdf').onclick=async()=>{
