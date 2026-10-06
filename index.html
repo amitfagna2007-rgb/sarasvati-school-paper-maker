@@ -196,28 +196,47 @@ $('clearNotice').onclick=()=>{
 };
 $('printNotice').onclick=()=>{
   renderNotice();
+  const card=$('noticePreview')?.closest('.noticePrintCard');
+  if(card)card.style.display='block';
+  fitNoticeText();
   document.body.classList.add('printing-notice');
   window.print();
 };
 function fitNoticeText(){
-  const p=$('noticePreview'), body=p?.querySelector('.noticeBody');
+  const p=$('noticePreview'), body=p?.querySelector('.noticeBody'), card=p?.closest('.noticePrintCard');
   if(!p||!body)return;
-  let size=16;
+  const wasHidden=card&&getComputedStyle(card).display==='none';
+  if(wasHidden)card.style.display='block';
+  p.style.width='210mm';p.style.height='297mm';p.style.minHeight='297mm';
+  let size=18;
   body.style.fontSize=size+'px';
   body.style.lineHeight='1.5';
-  const max=p.clientHeight-p.querySelector('.noticeHead').offsetHeight-95;
+  const head=p.querySelector('.noticeHead');
+  const meta=p.querySelector('.noticeMeta');
+  const sign=p.querySelector('.noticeSign');
+  const side=Math.max(8,parseFloat(getComputedStyle(p).paddingLeft)||14);
+  const maxW=Math.max(120,p.clientWidth-side*2);
+  const reserved=(head?.offsetHeight||0)+(meta?.offsetHeight||0)+(sign?.offsetHeight||0)+70;
+  const maxH=Math.max(120,p.clientHeight-reserved);
   let guard=0;
-  while(size<42&&guard++<80){
+  while(size<96&&guard++<180){
     body.style.fontSize=(size+0.5)+'px';
-    if(body.scrollHeight>max){body.style.fontSize=size+'px';break}
+    body.style.lineHeight='1.5';
+    if(body.scrollWidth>maxW||body.scrollHeight>maxH){
+      body.style.fontSize=size+'px';
+      break;
+    }
     size+=0.5;
   }
+  if(wasHidden)card.style.display='none';
 }
 $('downloadNoticePdf').onclick=async()=>{
   const btn=$('downloadNoticePdf'),old=btn.textContent;
   btn.disabled=true;btn.textContent='⏳ PDF बन रहा है...';
   try{
     renderNotice();
+    const card=$('noticePreview')?.closest('.noticePrintCard');
+    if(card)card.style.display='block';
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     fitNoticeText();
     await new Promise(r=>requestAnimationFrame(r));
@@ -242,7 +261,12 @@ $('downloadNoticePdf').onclick=async()=>{
   }finally{btn.disabled=false;btn.textContent=old}
 };
 
-window.addEventListener('afterprint',()=>{document.body.classList.remove('printing-notice');fitNoticeText()});
+window.addEventListener('afterprint',()=>{
+  document.body.classList.remove('printing-notice');
+  fitNoticeText();
+  const card=$('noticePreview')?.closest('.noticePrintCard');
+  if(card)card.style.display='none';
+});
 renderNoticeSaved();
 renderNotice();
 requestAnimationFrame(()=>fitNoticeText());
