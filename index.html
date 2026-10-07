@@ -13,6 +13,7 @@
 <label>Date<input id="noticeDate" type="date"></label>
 <label>For<input id="noticeFor" value="समस्त शिक्षकगण"></label>
 <label>Issued By<input id="noticeIssuer" value="प्रधानाचार्य"></label>
+<label>Notice Text Size<select id="noticeTextSize"><option value="42">Normal</option><option value="84">2× बड़ा</option></select></label>
 </div>
 <label style="display:block;margin-top:10px">Notice लिखें<textarea id="noticeText" dir="auto" style="min-height:260px" placeholder="यहाँ स्कूल के शिक्षकों के लिए सूचना लिखें..."></textarea></label>
 <div class="actions" style="margin-top:10px">
@@ -154,7 +155,8 @@ function noticeState(){
     date:$('noticeDate').value,
     for:$('noticeFor').value,
     issuer:$('noticeIssuer').value,
-    text:$('noticeText').value
+    text:$('noticeText').value,
+    textSize:$('noticeTextSize')?.value||'42'
   };
 }
 function renderNotice(){
@@ -173,7 +175,7 @@ function renderNoticeSaved(){
 }
 window.loadNotice=i=>{
   const n=noticeSaved[i];if(!n)return;
-  $('noticeHeading').value=n.heading||'सूचना';$('noticeDate').value=n.date||'';$('noticeFor').value=n.for||'समस्त शिक्षकगण';$('noticeIssuer').value=n.issuer||'प्रधानाचार्य';$('noticeText').value=n.text||'';
+  $('noticeHeading').value=n.heading||'सूचना';$('noticeDate').value=n.date||'';$('noticeFor').value=n.for||'समस्त शिक्षकगण';$('noticeIssuer').value=n.issuer||'प्रधानाचार्य';$('noticeText').value=n.text||'';$('noticeTextSize').value=n.textSize||'42';
   renderNotice();
 };
 window.deleteNotice=i=>{
@@ -183,6 +185,7 @@ window.deleteNotice=i=>{
 $('openNotice').onclick=()=>{$('noticeEditor').style.display='block';renderNotice();$('noticeEditor').scrollIntoView({behavior:'smooth',block:'start'})};
 $('closeNotice').onclick=()=>{$('noticeEditor').style.display='none'};
 ['noticeHeading','noticeDate','noticeFor','noticeIssuer','noticeText'].forEach(id=>$(id).addEventListener('input',renderNotice));
+$('noticeTextSize').addEventListener('change',renderNotice);
 $('saveNotice').onclick=()=>{
   const n=noticeState();
   if(!n.text.trim()){alert('पहले notice लिखें।');return}
@@ -192,7 +195,7 @@ $('saveNotice').onclick=()=>{
   renderNoticeSaved();alert('Notice save हो गया।');
 };
 $('clearNotice').onclick=()=>{
-  $('noticeHeading').value='सूचना';$('noticeDate').value='';$('noticeFor').value='समस्त शिक्षकगण';$('noticeIssuer').value='प्रधानाचार्य';$('noticeText').value='';renderNotice();
+  $('noticeHeading').value='सूचना';$('noticeDate').value='';$('noticeFor').value='समस्त शिक्षकगण';$('noticeIssuer').value='प्रधानाचार्य';$('noticeText').value='';$('noticeTextSize').value='42';renderNotice();
 };
 $('printNotice').onclick=()=>{
   renderNotice();
@@ -211,7 +214,8 @@ function fitNoticeText(){
   body.style.minHeight='0';
   body.style.height='auto';
   body.style.overflow='visible';
-  body.style.fontSize='42px';
+  const preferred=Math.max(1,parseFloat($('noticeTextSize')?.value)||42);
+  body.style.fontSize=preferred+'px';
   body.style.lineHeight='1.5';
   const ps=getComputedStyle(p);
   const padX=(parseFloat(ps.paddingLeft)||14)+(parseFloat(ps.paddingRight)||14);
@@ -223,14 +227,17 @@ function fitNoticeText(){
   const sign=p.querySelector('.noticeSign');
   const fixed=(head?.offsetHeight||0)+(title?.offsetHeight||0);
   const maxH=Math.max(140,p.clientHeight-padY-fixed-42);
-  let low=42,high=180,best=42;
-  for(let guard=0;guard<12&&low<=high;guard++){
-    const mid=Math.floor((low+high)/2);
-    body.style.fontSize=mid+'px';
-    body.style.lineHeight='1.5';
-    if(body.scrollWidth<=maxW&&body.scrollHeight<=maxH){
-      best=mid;low=mid+1;
-    }else high=mid-1;
+  let low=10,high=preferred,best=preferred;
+  if(body.scrollWidth>maxW||body.scrollHeight>maxH){
+    best=10;
+    for(let guard=0;guard<10&&low<=high;guard++){
+      const mid=Math.floor((low+high)/2);
+      body.style.fontSize=mid+'px';
+      body.style.lineHeight='1.5';
+      if(body.scrollWidth<=maxW&&body.scrollHeight<=maxH){
+        best=mid;low=mid+1;
+      }else high=mid-1;
+    }
   }
   body.style.fontSize=best+'px';
   body.style.lineHeight='1.5';
