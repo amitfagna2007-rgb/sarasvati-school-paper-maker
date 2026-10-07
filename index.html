@@ -19,6 +19,7 @@
 <div class="actions" style="margin-top:10px">
 <button type="button" class="primary" id="printNotice">🖨️ Print Notice</button>
 <button type="button" id="downloadNoticePdf">⬇️ Download PDF</button>
+<button type="button" id="shareNotice">📤 Share</button>
 <button type="button" id="saveNotice">💾 Save Notice</button>
 <button type="button" id="clearNotice">🆕 New Notice</button>
 <button type="button" id="closeNotice">✖ Close</button>
@@ -224,6 +225,32 @@ $('saveNotice').onclick=()=>{
 };
 $('clearNotice').onclick=()=>{
   $('noticeHeading').value='सूचना';$('noticeDate').value='';$('noticeFor').value='समस्त शिक्षकगण';$('noticeIssuer').value='प्रधानाचार्य';$('noticeText').value='';$('noticeTextSize').value='42';renderNotice();
+};
+$('shareNotice').onclick=async()=>{
+  try{
+    renderNotice();
+    const card=$('noticePreview')?.closest('.noticePrintCard');
+    if(card)card.style.display='block';
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    fitNoticeText();
+    const name=('Teacher Notice - '+(($('noticeHeading').value||'सूचना').trim())).replace(/[\\/:*?"<>|]/g,'_');
+    if(navigator.share){
+      if(typeof html2pdf==='function' && navigator.canShare){
+        try{
+          const pdf=await html2pdf().set({
+            margin:0,image:{type:'jpeg',quality:.98},
+            html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#fff',scrollX:0,scrollY:0},
+            jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+          }).from($('noticePreview')).toPdf().get('pdf');
+          const file=new File([pdf.output('blob')],name+'.pdf',{type:'application/pdf'});
+          if(navigator.canShare({files:[file]})){await navigator.share({title:name,text:'Teacher Notice',files:[file]});return;}
+        }catch(e){console.warn('Notice file share unavailable',e);}
+      }
+      await navigator.share({title:name,text:'Teacher Notice'});
+      return;
+    }
+    alert('इस device/browser में Share उपलब्ध नहीं है।');
+  }catch(e){console.error(e);alert('Notice Share नहीं हो पाया।');}
 };
 $('printNotice').onclick=()=>{
   renderNotice();
