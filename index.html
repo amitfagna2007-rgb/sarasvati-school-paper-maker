@@ -13,7 +13,7 @@
 <label>Date<input id="noticeDate" type="date"></label>
 <label>For<input id="noticeFor" value="समस्त शिक्षकगण"></label>
 <label>Issued By<input id="noticeIssuer" value="प्रधानाचार्य"></label>
-<label>Notice Text Size<select id="noticeTextSize"><option value="42">Normal</option><option value="84">2× बड़ा</option></select></label>
+<label>Notice Text Size<select id="noticeTextSize"><option value="42">1× Normal</option><option value="84">2× बड़ा</option><option value="126">3× बड़ा</option><option value="168">4× बड़ा</option><option value="210">5× बड़ा</option><option value="252">6× बड़ा</option><option value="294">7× बड़ा</option><option value="336">8× बड़ा</option></select></label>
 </div>
 <label style="display:block;margin-top:10px">Notice लिखें<textarea id="noticeText" dir="auto" style="min-height:260px" placeholder="यहाँ स्कूल के शिक्षकों के लिए सूचना लिखें..."></textarea></label>
 <div class="actions" style="margin-top:10px">
@@ -227,20 +227,13 @@ function fitNoticeText(){
   const sign=p.querySelector('.noticeSign');
   const fixed=(head?.offsetHeight||0)+(title?.offsetHeight||0);
   const maxH=Math.max(140,p.clientHeight-padY-fixed-42);
-  let low=10,high=preferred,best=preferred;
-  if(body.scrollWidth>maxW||body.scrollHeight>maxH){
-    best=10;
-    for(let guard=0;guard<10&&low<=high;guard++){
-      const mid=Math.floor((low+high)/2);
-      body.style.fontSize=mid+'px';
-      body.style.lineHeight='1.5';
-      if(body.scrollWidth<=maxW&&body.scrollHeight<=maxH){
-        best=mid;low=mid+1;
-      }else high=mid-1;
-    }
-  }
+  // Notice Text Size option is the exact print size too.
+  // Do not automatically shrink it during print/PDF.
+  const best=preferred;
   body.style.fontSize=best+'px';
   body.style.lineHeight='1.5';
+  body.style.maxWidth='100%';
+  body.style.overflowWrap='anywhere';
   p.style.setProperty('--notice-body-size',best+'px');
   if(wasHidden)card.style.display='none';
 }
