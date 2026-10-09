@@ -11,7 +11,7 @@
 #linePageMission{display:flex;align-items:center;gap:8px;margin:6px 0 10px;font-weight:700}
 #linePageMission input{margin:0;flex:1;min-width:0;border:0;border-bottom:1px solid #263746;border-radius:0;padding:5px;background:transparent}
 #linePageGrid{display:grid;gap:0;width:100%;border-top:1px solid #263746;border-left:1px solid #263746;grid-auto-rows:minmax(32px,auto)}
-#linePageGrid .lineCell{box-sizing:border-box;min-width:0;min-height:32px;border-right:1px solid #263746;border-bottom:1px solid #263746;padding:4px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;font-size:14px;background:#fff}
+#linePageGrid .lineCell{box-sizing:border-box;min-width:0;min-height:32px;border-right:1px solid #263746;border-bottom:1px solid #263746;padding:4px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;font-size:14px;background:#fff;line-height:1.15}
 #linePageGrid .lineCell:focus{background:#f4f9ff;box-shadow:inset 0 0 0 1px #7aa6d4}
 #linePageGrid .lineCell[data-cell="0"]{border-top:2px solid #111!important;border-left:2px solid #111!important}
 #linePageGrid .lineCell[data-cell^="0"]{font-weight:700}
@@ -368,17 +368,23 @@ requestAnimationFrame(()=>fitNoticeText());
 
 // Editable horizontal/vertical line page; isolated from existing saved app data.
 const lineSection=$('linePageSection');
+function fitLineCellText(cell){
+ const scale=Math.max(1,Math.min(10,parseInt($('lineCellScale').value,10)||1));
+ let size=14*Math.min(scale,3);
+ cell.style.fontSize=size+'px';
+ while(size>7&&(cell.scrollHeight>cell.clientHeight+1||cell.scrollWidth>cell.clientWidth+1)){size-=1;cell.style.fontSize=size+'px';}
+}
 function applyLineCellScale(){
  const scale=Math.max(1,Math.min(10,parseInt($('lineCellScale').value,10)||1));
  const grid=$('linePageGrid');grid.style.gridAutoRows=(32*scale)+'px';
- grid.querySelectorAll('.lineCell').forEach(cell=>{cell.style.minHeight=(32*scale)+'px';cell.style.height=(32*scale)+'px';cell.style.fontSize=(14*Math.min(scale,3))+'px';cell.style.padding=(4*Math.min(scale,3))+'px';});
+ grid.querySelectorAll('.lineCell').forEach(cell=>{cell.style.minHeight=(32*scale)+'px';cell.style.height=(32*scale)+'px';cell.style.fontSize=(14*Math.min(scale,3))+'px';cell.style.padding=(4*Math.min(scale,3))+'px';fitLineCellText(cell);});
 }
 function buildLineGrid(){
  const rows=Math.max(1,Math.min(40,parseInt($('lineRows').value,10)||12));
  const cols=Math.max(1,Math.min(16,parseInt($('lineCols').value,10)||4));
  $('lineRows').value=rows;$('lineCols').value=cols;
  const grid=$('linePageGrid');grid.innerHTML='';grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';grid.style.gridTemplateRows='none';
- for(let i=0;i<rows*cols;i++){const cell=document.createElement('div');cell.className='lineCell';if(i<cols)cell.classList.add('lineFirstRow','lineTopEdge');if(i%cols===0)cell.classList.add('lineFirstCol','lineLeftEdge');cell.contentEditable='true';cell.setAttribute('role','textbox');cell.setAttribute('aria-label','डिब्बा '+(i+1));cell.setAttribute('data-cell',String(i));cell.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const next=grid.querySelector('[data-cell="'+(i+cols)+'"]');if(next)next.focus();}});grid.appendChild(cell);}
+ for(let i=0;i<rows*cols;i++){const cell=document.createElement('div');cell.className='lineCell';if(i<cols)cell.classList.add('lineFirstRow','lineTopEdge');if(i%cols===0)cell.classList.add('lineFirstCol','lineLeftEdge');cell.contentEditable='true';cell.setAttribute('role','textbox');cell.setAttribute('aria-label','डिब्बा '+(i+1));cell.setAttribute('data-cell',String(i));cell.addEventListener('input',()=>fitLineCellText(cell));cell.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const next=grid.querySelector('[data-cell="'+(i+cols)+'"]');if(next)next.focus();}});grid.appendChild(cell);}
  applyLineCellScale();
 }
 $('openLinePage').onclick=()=>{lineSection.style.display='block';buildLineGrid();lineSection.scrollIntoView({behavior:'smooth',block:'start'});};
