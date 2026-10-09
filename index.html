@@ -373,8 +373,14 @@ $('tpPdf').onclick=async()=>{
  try{
   if(typeof html2pdf!=='function')throw new Error('PDF library unavailable');
   const old=$('tpPdf').textContent;$('tpPdf').disabled=true;$('tpPdf').textContent='⏳ PDF बन रहा है...';
-  const el=$('tpPlanPrint');
+  const el=$('tpPlanPrint'),title=$('tpPlanTitle');
+  const oldDisplay=title.style.display;
+  title.style.display='block';
+  el.querySelectorAll('.tpAction').forEach(x=>x.style.display='none');
   await html2pdf().set({margin:8,filename:'School_Annual_Test_Planning.pdf',image:{type:'jpeg',quality:.98},html2canvas:{scale:2,useCORS:true,backgroundColor:'#fff'},jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},pagebreak:{mode:['css','legacy']}}).from(el).save();
+  title.style.display=oldDisplay;
+  el.querySelectorAll('.tpAction').forEach(x=>x.style.display='');
+
   $('tpPdf').disabled=false;$('tpPdf').textContent=old;
  }catch(e){console.error(e);alert('PDF नहीं बन पाया। Internet ON करके फिर कोशिश करें या Print से Save as PDF चुनें।');$('tpPdf').disabled=false;$('tpPdf').textContent='⬇️ Download PDF';}
 };
