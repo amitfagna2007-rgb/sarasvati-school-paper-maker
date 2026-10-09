@@ -20,7 +20,7 @@
 #linePageGrid .lineCell.lineLeftEdge{border-left:2px solid #111!important}
 #linePageGrid .lineCell.lineFirstRow,#linePageGrid .lineCell.lineFirstCol{font-weight:700}
 
-@media print{body.printing-linepage>header,body.printing-linepage main>.card:not(#linePageSection){display:none!important}body.printing-linepage #linePageSection{display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important}body.printing-linepage #linePageControls,body.printing-linepage #linePageSection>h2,body.printing-linepage #linePageHelp,body.printing-linepage #linePageButtons{display:none!important}body.printing-linepage #linePageGrid{grid-auto-rows:minmax(24px,auto)!important}body.printing-linepage #linePageGrid .lineCell{min-height:24px!important;font-size:12pt!important;overflow:visible!important}body.printing-linepage #linePageMission input{color:#111!important}}
+@media print{body.printing-linepage>header,body.printing-linepage main>.card:not(#linePageSection){display:none!important}body.printing-linepage #linePageSection{display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important}body.printing-linepage #linePageControls,body.printing-linepage #linePageSection>h2,body.printing-linepage #linePageHelp,body.printing-linepage #linePageButtons{display:none!important}body.printing-linepage #linePageGrid{grid-auto-rows:unset!important}body.printing-linepage #linePageGrid .lineCell{overflow:visible!important}body.printing-linepage #linePageMission input{color:#111!important}}
 </style></head><body>
 <header class="noprint" style="background:#173f67;color:#fff;padding:12px"><div class="wrap"><h1>📚 Sarasvati School Paper Maker</h1></div></header><main class="wrap">
 <section class="card noprint"><h2>Paper Details</h2><div class="grid"><input id="school" value="SARASVATI BAL VIDHYA MANDIR SAKARGHATA" type="hidden"><label>Exam Name<input id="exam" value="Unit Test"></label><label>Class<input id="cls" placeholder="Class 10"></label><label>Subject<input id="subject" placeholder="Science"></label><label>Date<input id="date" type="date"></label><label>Time<input id="time" value="2 Hours"></label><label>Total Marks<input id="total" type="number" value="50"></label></div></section>
@@ -371,7 +371,7 @@ const lineSection=$('linePageSection');
 function applyLineCellScale(){
  const scale=Math.max(1,Math.min(10,parseInt($('lineCellScale').value,10)||1));
  const grid=$('linePageGrid');grid.style.gridAutoRows=(32*scale)+'px';
- grid.querySelectorAll('.lineCell').forEach(cell=>{cell.style.minHeight=(32*scale)+'px';cell.style.fontSize=(14*Math.min(scale,3))+'px';cell.style.padding=(4*Math.min(scale,3))+'px';});
+ grid.querySelectorAll('.lineCell').forEach(cell=>{cell.style.minHeight=(32*scale)+'px';cell.style.height=(32*scale)+'px';cell.style.fontSize=(14*Math.min(scale,3))+'px';cell.style.padding=(4*Math.min(scale,3))+'px';});
 }
 function buildLineGrid(){
  const rows=Math.max(1,Math.min(40,parseInt($('lineRows').value,10)||12));
