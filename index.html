@@ -13,6 +13,13 @@
 #linePageGrid{display:grid;gap:0;width:100%;border-top:1px solid #263746;border-left:1px solid #263746;grid-auto-rows:minmax(32px,auto)}
 #linePageGrid .lineCell{box-sizing:border-box;min-width:0;min-height:32px;border-right:1px solid #263746;border-bottom:1px solid #263746;padding:4px;outline:none;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;font-size:14px;background:#fff}
 #linePageGrid .lineCell:focus{background:#f4f9ff;box-shadow:inset 0 0 0 1px #7aa6d4}
+#linePageGrid .lineCell[data-cell="0"]{border-top:2px solid #111!important;border-left:2px solid #111!important}
+#linePageGrid .lineCell[data-cell^="0"]{font-weight:700}
+#linePageGrid .lineCell:first-child{font-weight:700}
+#linePageGrid .lineCell.lineTopEdge{border-top:2px solid #111!important}
+#linePageGrid .lineCell.lineLeftEdge{border-left:2px solid #111!important}
+#linePageGrid .lineCell.lineFirstRow,#linePageGrid .lineCell.lineFirstCol{font-weight:700}
+
 @media print{body.printing-linepage>header,body.printing-linepage main>.card:not(#linePageSection){display:none!important}body.printing-linepage #linePageSection{display:block!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0!important}body.printing-linepage #linePageControls,body.printing-linepage #linePageSection>h2,body.printing-linepage #linePageHelp,body.printing-linepage #linePageButtons{display:none!important}body.printing-linepage #linePageGrid{grid-auto-rows:minmax(24px,auto)!important}body.printing-linepage #linePageGrid .lineCell{min-height:24px!important;font-size:12pt!important;overflow:visible!important}body.printing-linepage #linePageMission input{color:#111!important}}
 </style></head><body>
 <header class="noprint" style="background:#173f67;color:#fff;padding:12px"><div class="wrap"><h1>📚 Sarasvati School Paper Maker</h1></div></header><main class="wrap">
@@ -371,7 +378,7 @@ function buildLineGrid(){
  const cols=Math.max(1,Math.min(16,parseInt($('lineCols').value,10)||4));
  $('lineRows').value=rows;$('lineCols').value=cols;
  const grid=$('linePageGrid');grid.innerHTML='';grid.style.gridTemplateColumns='repeat('+cols+',minmax(0,1fr))';grid.style.gridTemplateRows='none';
- for(let i=0;i<rows*cols;i++){const cell=document.createElement('div');cell.className='lineCell';cell.contentEditable='true';cell.setAttribute('role','textbox');cell.setAttribute('aria-label','डिब्बा '+(i+1));cell.setAttribute('data-cell',String(i));cell.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const next=grid.querySelector('[data-cell="'+(i+cols)+'"]');if(next)next.focus();}});grid.appendChild(cell);}
+ for(let i=0;i<rows*cols;i++){const cell=document.createElement('div');cell.className='lineCell';if(i<cols)cell.classList.add('lineFirstRow','lineTopEdge');if(i%cols===0)cell.classList.add('lineFirstCol','lineLeftEdge');cell.contentEditable='true';cell.setAttribute('role','textbox');cell.setAttribute('aria-label','डिब्बा '+(i+1));cell.setAttribute('data-cell',String(i));cell.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const next=grid.querySelector('[data-cell="'+(i+cols)+'"]');if(next)next.focus();}});grid.appendChild(cell);}
  applyLineCellScale();
 }
 $('openLinePage').onclick=()=>{lineSection.style.display='block';buildLineGrid();lineSection.scrollIntoView({behavior:'smooth',block:'start'});};
