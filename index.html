@@ -24,6 +24,20 @@
 </style></head><body>
 <header class="noprint" style="background:#173f67;color:#fff;padding:12px"><div class="wrap"><h1>📚 Sarasvati School Paper Maker</h1></div></header><main class="wrap">
 <section class="card noprint"><h2>Paper Details</h2><div class="grid"><input id="school" value="SARASVATI BAL VIDHYA MANDIR SAKARGHATA" type="hidden"><label>Exam Name<input id="exam" value="Unit Test"></label><label>Class<input id="cls" placeholder="Class 10"></label><label>Subject<input id="subject" placeholder="Science"></label><label>Date<input id="date" type="date"></label><label>Time<input id="time" value="2 Hours"></label><label>Total Marks<input id="total" type="number" value="50"></label></div></section>
+<section class="card noprint" id="photoImportSection">
+<h2>📸 दूसरे स्कूल के पेपर की फोटो से प्रश्न निकालें</h2>
+<p style="font-size:13px;color:#555">एक या कई पेज की साफ फोटो चुनें। OCR के लिए Internet जरूरी है। प्रश्न जोड़ने से पहले निकले हुए टेक्स्ट को जाँच और सुधार सकते हैं।</p>
+<label>पेपर की फोटो चुनें (एक से अधिक भी)<input id="paperPhotos" type="file" accept="image/*" multiple capture="environment"></label>
+<div id="photoImportFiles" style="font-size:13px;margin-top:6px"></div>
+<div class="actions" style="margin-top:10px">
+<button type="button" class="primary" id="extractPhotoQuestions">🤖 फोटो से प्रश्न पढ़ें</button>
+<button type="button" id="clearPhotoImport">✖ साफ करें</button>
+</div>
+<div id="photoOcrStatus" role="status" style="font-size:13px;margin-top:8px;white-space:pre-wrap"></div>
+<label style="display:block;margin-top:10px">निकला हुआ टेक्स्ट जाँचें / सुधारें<textarea id="photoOcrText" dir="auto" rows="10" placeholder="फोटो पढ़ने के बाद प्रश्न यहाँ दिखाई देंगे..."></textarea></label>
+<div class="actions" style="margin-top:10px"><button type="button" class="primary" id="addOcrQuestions">➕ प्रश्न Paper Maker में जोड़ें</button></div>
+<p style="font-size:12px;color:#666">ध्यान दें: धुंधली फोटो, गणित के सूत्र, तालिकाएँ और चित्र गलत पढ़े जा सकते हैं। मूल पेपर देखकर जाँच लें। आपका स्कूल नाम ऐप में पहले से तय रहेगा।</p>
+</section>
 <section class="card noticeEditor noprint" id="noticeEditor">
 <h2>📢 Teacher Notice</h2>
 <div class="grid">
@@ -394,5 +408,74 @@ $('lineCellScale').onchange=applyLineCellScale;
 $('printLineGrid').onclick=()=>{document.body.classList.add('printing-linepage');window.print();};
 window.addEventListener('afterprint',()=>document.body.classList.remove('printing-linepage'));
 
+
+ // Photo-to-question OCR import; existing saved papers and Question Bank are untouched.
+let photoOcrBusy=false;
+function loadTesseract(){
+ return new Promise((resolve,reject)=>{
+  if(window.Tesseract){resolve(window.Tesseract);return}
+  const script=document.createElement('script');
+  script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';script.async=true;
+  script.onload=()=>window.Tesseract?resolve(window.Tesseract):reject(new Error('OCR library उपलब्ध नहीं है'));
+  script.onerror=()=>reject(new Error('OCR library डाउनलोड नहीं हुई। Internet जाँचें।'));
+  document.head.appendChild(script);
+ });
+}
+$('paperPhotos').addEventListener('change',()=>{
+ const files=[...($('paperPhotos').files||[])];
+ $('photoImportFiles').textContent=files.length?files.map((f,i)=>(i+1)+'. '+f.name+' ('+Math.max(1,Math.round(f.size/1024))+' KB)').join('\n'):'कोई फोटो नहीं चुनी गई।';
+ $('photoOcrStatus').textContent='';
+});
+$('clearPhotoImport').onclick=()=>{
+ if(photoOcrBusy)return;
+ $('paperPhotos').value='';$('photoOcrText').value='';$('photoImportFiles').textContent='';$('photoOcrStatus').textContent='';
+};
+$('extractPhotoQuestions').onclick=async()=>{
+ if(photoOcrBusy)return;
+ const files=[...($('paperPhotos').files||[])].filter(f=>f.type.startsWith('image/'));
+ if(!files.length){alert('पहले प्रश्नपत्र की एक या अधिक फोटो चुनें।');return}
+ const btn=$('extractPhotoQuestions');photoOcrBusy=true;btn.disabled=true;let allText='';
+ try{
+  const T=await loadTesseract();
+  for(let i=0;i<files.length;i++){
+   $('photoOcrStatus').textContent='फोटो '+(i+1)+'/'+files.length+' पढ़ी जा रही है... Internet चालू रखें।';
+   const result=await T.recognize(files[i],'hin+eng',{logger:m=>{
+    if(m.status==='recognizing text')$('photoOcrStatus').textContent='फोटो '+(i+1)+'/'+files.length+' पढ़ी जा रही है: '+Math.round((m.progress||0)*100)+'%';
+   }});
+   const txt=(result?.data?.text||'').trim();
+   if(txt)allText+=(allText?'\n\n':'')+'[फोटो '+(i+1)+']\n'+txt;
+  }
+  $('photoOcrText').value=allText;
+  $('photoOcrStatus').textContent=allText?'फोटो पढ़ ली गईं। टेक्स्ट जाँचें और फिर प्रश्न जोड़ें।':'टेक्स्ट नहीं मिला। साफ और सीधी फोटो लेकर फिर कोशिश करें।';
+  $('photoOcrText').focus();
+ }catch(e){console.error(e);$('photoOcrStatus').textContent='फोटो नहीं पढ़ी जा सकी। Internet चालू करके फिर कोशिश करें। ('+(e.message||'OCR error')+')'}
+ finally{photoOcrBusy=false;btn.disabled=false}
+};
+function splitRecognizedQuestions(raw){
+ const text=String(raw||'').replace(/\r/g,'\n').replace(/[ \t]+\n/g,'\n').trim();
+ if(!text)return [];
+ const lines=text.split('\n'),starts=[];let pos=0;
+ const re=/^\s*(?:(?:प्रश्न|प्रश्‍न)\s*)?(?:(?:Q(?:uestion)?\s*)?\d{1,3}\s*[.)।:：-]|\(\d{1,3}\)\s*)/i;
+ for(const line of lines){if(re.test(line.trim())&&line.trim().length>2)starts.push(pos);pos+=line.length+1}
+ if(starts.length<2)return [text];
+ const chunks=[];for(let i=0;i<starts.length;i++){const chunk=text.slice(starts[i],starts[i+1]??text.length).trim();if(chunk)chunks.push(chunk)}
+ return chunks.length?chunks:[text];
+}
+$('addOcrQuestions').onclick=()=>{
+ const raw=$('photoOcrText').value.trim();
+ if(!raw){alert('पहले फोटो पढ़ें या टेक्स्ट बॉक्स में प्रश्न डालें।');return}
+ const chunks=splitRecognizedQuestions(raw);
+ if(!chunks.length)return;
+ if(!confirm(chunks.length+' प्रश्न/टेक्स्ट ब्लॉक Paper Maker में जोड़ें? पुराने प्रश्न हटेंगे नहीं।'))return;
+ for(const chunk of chunks){
+  let type='Short';
+  if(/रिक्त स्थान|खाली स्थान|fill\s+in\s+the\s+blank/i.test(chunk))type='Fill';
+  else if(/बहुविकल्प|विकल्प चुन|multiple choice|\bMCQ\b/i.test(chunk))type='MCQ';
+  else if(/विस्तार से|दीर्घ उत्तरीय|long answer|explain in detail/i.test(chunk))type='Long';
+  questions.push({text:chunk,type,marks:1,options:[]});
+ }
+ render();$('qs').scrollIntoView({behavior:'smooth',block:'start'});
+ $('photoOcrStatus').textContent=chunks.length+' प्रश्न/टेक्स्ट ब्लॉक जोड़ दिए गए। Numbering, options और marks जाँच लें।';
+};
 render();
 </script></body></html>
